@@ -2,14 +2,19 @@
 Movie Genre Classification API — Proyecto 2
 Patrón idéntico a Semana 3/api.py (Flask + flask-restx, artefactos joblib).
 
+Modelo final: TF-IDF (1,2) + OneVsRest(LogisticRegression(class_weight='balanced')).
+La ablación en S7P1_proyecto2.ipynb (sección 10) mostró que sentimiento y keywords
+binarias no aportan AUC; el modelo final usa solo TF-IDF con los pesos de clase
+balanceados.
+
 Artefactos requeridos (misma carpeta que api.py):
-  tfidf_vectorizer_v1.pkl  — TfidfVectorizer ajustado sobre el training set completo
-  genre_clf_v1.pkl         — OneVsRestClassifier(LogisticRegression) multi-etiqueta
-  mlb_genres_v1.pkl        — MultiLabelBinarizer para mapear índices → nombres
-  output_columns_v1.pkl    — lista de 24 columnas ['p_Action', ..., 'p_Western']
+  tfidf_vectorizer.pkl  — TfidfVectorizer refit sobre 100% del training
+  genre_clf.pkl         — OvR LogisticRegression(class_weight='balanced')
+  mlb_genres.pkl        — MultiLabelBinarizer (orden Kaggle)
+  output_columns.pkl    — ['p_Action', ..., 'p_Western']
 
 Arrancar:
-  cd "Semana 7" && python api.py            # desarrollo
+  cd "Semana 7" && python api.py            # desarrollo (puerto 5000)
   cd "Semana 7" && gunicorn api:app --bind 0.0.0.0:$PORT  # producción
 
 Ejemplo de request:
@@ -17,8 +22,8 @@ Ejemplo de request:
 """
 
 import re
+import os
 import joblib
-import pandas as pd
 from flask import Flask
 from flask_restx import Api, Resource, fields
 
@@ -28,18 +33,23 @@ api = Api(
     app,
     version='1.0',
     title='Movie Genre Classification API',
-    description='Predicts genre probabilities from a movie plot synopsis.',
+    description='Predicts genre probabilities from a movie plot synopsis (TF-IDF + LogReg balanced).',
 )
 
 ns = api.namespace('predict', description='Genre Classifier')
 
 # ---------------------------------------------------------------------------
-# Carga de artefactos (igual que Proyecto 1: fallan rápido en import time)
+# Carga de artefactos
 # ---------------------------------------------------------------------------
-vectorizer   = joblib.load('tfidf_vectorizer_v1.pkl')
-classifier   = joblib.load('genre_clf_v1.pkl')
-mlb          = joblib.load('mlb_genres_v1.pkl')
-output_cols  = joblib.load('output_columns_v1.pkl')   # ['p_Action', ..., 'p_Western']
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+def _load(name):
+    return joblib.load(os.path.join(HERE, name))
+
+vectorizer  = _load('tfidf_vectorizer.pkl')
+classifier  = _load('genre_clf.pkl')
+mlb         = _load('mlb_genres.pkl')
+output_cols = _load('output_columns.pkl')
 
 # ---------------------------------------------------------------------------
 # Preprocesamiento — debe ser idéntico al clean_text del notebook
@@ -61,9 +71,9 @@ parser = ns.parser()
 parser.add_argument('plot',  type=str, required=True,  location='args',
                     help='Sinopsis de la película (en inglés).')
 parser.add_argument('title', type=str, required=False, location='args', default='',
-                    help='Título de la película (opcional, no usado en el modelo v1).')
+                    help='Título de la película (opcional, no usado en el modelo).')
 parser.add_argument('year',  type=int, required=False, location='args', default=0,
-                    help='Año de lanzamiento (opcional, no usado en el modelo v1).')
+                    help='Año de lanzamiento (opcional, no usado en el modelo).')
 
 # ---------------------------------------------------------------------------
 # Schema de respuesta
@@ -86,9 +96,7 @@ class MovieGenreApi(Resource):
 
         X = vectorizer.transform([plot_clean])
         proba = classifier.predict_proba(X)[0]   # shape (24,)
-
-        result = {col: float(p) for col, p in zip(output_cols, proba)}
-        return result, 200
+        return {col: float(p) for col, p in zip(output_cols, proba)}, 200
 
 
 if __name__ == '__main__':

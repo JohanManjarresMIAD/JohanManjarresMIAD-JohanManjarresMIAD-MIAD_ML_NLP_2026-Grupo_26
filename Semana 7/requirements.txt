@@ -1,7 +1,14 @@
+# Serving (lo que api.py necesita en producción)
 flask
 flask-restx
 joblib
 scikit-learn
+scipy
 pandas
 numpy
 gunicorn
+
+# Solo para reproducir el notebook S7P1_proyecto2.ipynb (no usado por api.py)
+matplotlib
+vaderSentiment
+scikit-multilearn
