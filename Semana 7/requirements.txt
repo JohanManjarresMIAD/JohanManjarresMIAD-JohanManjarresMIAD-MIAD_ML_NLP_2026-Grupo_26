@@ -1,4 +1,4 @@
-# Serving (lo que api.py necesita en producción)
+# Serving (lo que api.py necesita en producción — V1 / LR balanced)
 flask
 flask-restx
 joblib
@@ -8,7 +8,16 @@ pandas
 numpy
 gunicorn
 
-# Solo para reproducir el notebook S7P1_proyecto2.ipynb (no usado por api.py)
+# Solo para reproducir el notebook V1 (S7P1_proyecto2.ipynb)
 matplotlib
+seaborn
 vaderSentiment
 scikit-multilearn
+
+# Solo para reproducir notebooks V2 / V3 / V4 (transformers + input enriquecido)
+transformers>=4.30
+accelerate>=0.26.0
+torch
+sentencepiece
+textblob
+googletrans==4.0.0rc1   # solo lo importa V3; V4 no lo usa
